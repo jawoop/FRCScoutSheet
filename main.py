@@ -42,26 +42,39 @@ matchesReq = requests.get(f"{baseUrl}/event/{event['key']}/matches/simple",
                                    'event_key': event['key']})
 matches = sortBy(matchesReq.json(), 'actual_time')
 
+rankingsReq = requests.get(f"{baseUrl}/event/{event['key']}/rankings",
+                           headers={'X-TBA-Auth-Key': header,
+                                    'event_key': event['key']})
+rankings = rankingsReq.json()
+
 ourMatches = matchesForTeam(ourTeamKey, matches)
 print('Found which matches we are in')
 
 # pprint([match['match_number'] for match in sortBy(matches, 'match_number') if match in ourMatches])
 
 opponents = []
+partners = []
 for match in ourMatches:
     if ourTeamKey in match['alliances']['blue']['team_keys']:
         opponents.extend(match['alliances']['red']['team_keys'])
+        partners.extend(match['alliances']['blue']['team_keys'])
+        partners.remove(ourTeamKey)
     elif ourTeamKey in match['alliances']['red']['team_keys']:
         opponents.extend(match['alliances']['blue']['team_keys'])
+        partners.extend(match['alliances']['red']['team_keys'])
+        partners.remove(ourTeamKey)
     else:
         assert f"Team key {ourTeamKey} is not in either alliance in match {match['match_number']} \
         , which is supposed to contain them"
 
 # print(opponents)
 opponentsMatches = []
+partnersMatches = []
 for opponent in opponents:
     opponentsMatches.extend(matchesForTeam(opponent, matches))
 print('Found which matches our opponents are in')
+for partner in partners:
+    partnersMatches.extend(matchesForTeam(partner, matches))
 
 try:
     print('Opening the spreadsheet...')
@@ -96,15 +109,42 @@ print('Upload complete. Please check to make sure information was successfully u
 
 format_cell_range(sheet, f'A1:C{len(matches)}', CellFormat(
     backgroundColor=Color(1, 0.9, 0.9),
-    textFormat=TextFormat(bold=True, foregroundColor=Color(0.5, 0, 0)),
+    textFormat=TextFormat(bold=False, foregroundColor=Color(0.5, 0, 0)),
     horizontalAlignment='CENTER'
 ))
 format_cell_range(sheet, f'D1:F{len(matches)}', CellFormat(
     backgroundColor=Color(0.9, 0.9, 1),
-    textFormat=TextFormat(bold=True, foregroundColor=Color(0, 0, 0.5)),
+    textFormat=TextFormat(bold=False, foregroundColor=Color(0, 0, 0.5)),
     horizontalAlignment='CENTER'
 ))
+print('Highlighting us...')
+cellsNeedingFormatting = []
+for cell in sheet.findall('1405'):
+    cellsNeedingFormatting.append((gspread.utils.rowcol_to_a1(cell.row, cell.col),
+                                   CellFormat(
+                                       backgroundColor=Color(1, 1, 0.9),
+                                       textFormat=TextFormat(underline=True, foregroundColor=Color(0.5, 0.5, 0))
+                                   )))
 
+for opponent in opponents:
+    print(f'Highlighting opponent {opponent[3:]}')
+    for cell in sheet.findall(opponent[3:]):
+        cellsNeedingFormatting.append((gspread.utils.rowcol_to_a1(cell.row, cell.col),
+                                       CellFormat(
+                                           textFormat=TextFormat(bold=True)
+                                       )))
+
+for partner in partners:
+    print(f'Highlighting partner {partner[3:]}')
+    for cell in sheet.findall(partner[3:]):
+        cellsNeedingFormatting.append((gspread.utils.rowcol_to_a1(cell.row, cell.col),
+                                       CellFormat(
+                                           textFormat=TextFormat(italic=True)
+                                       )))
+
+print('Formatting all cells...')
+format_cell_ranges(sheet, cellsNeedingFormatting)
+print('Formatting completed!')
 # for row in range(1, len(matches)+1):
 #     for redAlliance in matches[row]['alliances']['red']['team_keys']:
 #         for column in range(1, 4):
