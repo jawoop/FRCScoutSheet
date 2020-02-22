@@ -1,11 +1,12 @@
 def sortBy(listOfDicts, key):
-    keysIndices = {dictionary[key]: listOfDicts.index(dictionary) for dictionary in listOfDicts}
-    sortedKeys = sorted(list(keysIndices.keys()))
-    return [listOfDicts[keysIndices[k]] for k in sortedKeys]
-
-
-def sortBy4Keys(listOfDicts, key1, key2, key3, key4):
-    keysIndices = {dictionary[key1][key2][key3][key4]: listOfDicts.index(dictionary) for dictionary in listOfDicts}
+    if '/' in key:
+        if key.count('/') > 1:
+            raise Exception("I don't know how to deal with this level of nested keys, please raise an issue on GitHub!")
+        else:
+            keysIndices = {dictionary[key.split('/')[0]][key.split('/')[1]]: listOfDicts.index(dictionary)
+                           for dictionary in listOfDicts}
+    else:
+        keysIndices = {dictionary[key]: listOfDicts.index(dictionary) for dictionary in listOfDicts}
     sortedKeys = sorted(list(keysIndices.keys()))
     return [listOfDicts[keysIndices[k]] for k in sortedKeys]
 
