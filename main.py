@@ -26,8 +26,8 @@ print('Authorization completed')
 # for TBA API calls
 baseUrl = 'https://www.thebluealliance.com/api/v3'
 ourTeamKey = 'frc1405'
-year = 2019
-eventName = 'Finger Lakes Regional'
+year = 2020
+eventName = 'Rochester Rally'
 opponents = []
 partners = []
 matches = []
@@ -88,7 +88,7 @@ while True:
     except gspread.exceptions.APIError:
         print('Lists unable to be updated, please wait until next cycle')
 
-    if needFormattingUpdates or forceAllUpdate:
+    if needMatchAllianceUpdates or forceAllUpdate:
         matchUpdateStart = now()
         matchesReq = requests.get(f"{baseUrl}/event/{event['key']}/matches/simple",
                                   headers={'X-TBA-Auth-Key': header,
