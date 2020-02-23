@@ -78,11 +78,13 @@ while True:
         print('Force update could not be accessed, please wait until the next cycle')
 
     try:
-        if doNotTrackList != sheet.col_values(8) or pickList1 != sheet.col_values(9) or pickList2 != sheet.col_values(10):
+        if doNotTrackList != sheet.col_values(8)[1:] or pickList1 != sheet.col_values(9)[
+                                                                     1:] or pickList2 != sheet.col_values(10)[1:]:
             needCustomListUpdates = True
-        doNotTrackList = sheet.col_values(8)
-        pickList1 = sheet.col_values(9)
-        pickList2 = sheet.col_values(10)
+        doNotTrackList = filterEntropy(sheet.col_values(8)[1:])
+        pickList1 = filterEntropy(sheet.col_values(9)[1:])
+        pickList2 = filterEntropy(sheet.col_values(10)[1:])
+        print(doNotTrackList, pickList1, pickList2)
     except gspread.exceptions.APIError:
         print('Lists unable to be updated, please wait until next cycle')
 
@@ -233,7 +235,7 @@ while True:
                     cellsNeedingFormatting.append((
                         gspread.utils.rowcol_to_a1(matches.index(match) + 1,
                                                    match['alliances'][match['winning_alliance']]['team_keys'].index(
-                                                       ourTeamKey) + 1
+                                                       ourTeamKey)
                                                    + (1 if ourTeamKey in match['alliances']['red'][
                                                        'team_keys'] else 4)),
                         CellFormat(
@@ -253,72 +255,83 @@ while True:
 
         if needCustomListUpdates:
             for match in matches:
-                if len(doNotTrackList) > 1:
-                    for dntTeam in doNotTrackList[1:]:
-                        print(f'Highlighting for disregard team {dntTeam}')
-                        print(matches.index(match) + 1)
+                if len(doNotTrackList) >= 1:
+                    for dntTeam in doNotTrackList:
+                        print(f'Highlighting for pick list 2 team {dntTeam} in row {matches.index(match) + 1}')
                         if 'frc' + str(dntTeam) in match['alliances']['red']['team_keys']:
+                            print('Found them in the red alliance!')
                             cellsNeedingFormatting.append((
                                 gspread.utils.rowcol_to_a1(matches.index(match) + 1,
                                                            match['alliances']['red']['team_keys'].index(
                                                                'frc' + str(dntTeam)) + 1),
+                                # TODO Solve formatting issue on foregroundColor for all custom lists (see lines 269,
+                                #  294, 304, 319, 329
                                 CellFormat(
                                     backgroundColor=Color(0.5, 0.5, 0.5),
-                                    textFormat=TextFormat(foregroundColor=Color(0.8, 0.8, 0.8))
+                                    # textFormat=TextFormat(foregroundColor=Color(0.8, 0.8, 0.8))
                                 )))
                         elif 'frc' + str(dntTeam) in match['alliances']['blue']['team_keys']:
+                            print('Found them in the blue alliance!')
                             cellsNeedingFormatting.append((
                                 gspread.utils.rowcol_to_a1(matches.index(match) + 1,
                                                            match['alliances']['blue']['team_keys'].index(
-                                                               'frc' + str(dntTeam)) + 1),
+                                                               'frc' + str(dntTeam)) + 4),
                                 CellFormat(
                                     backgroundColor=Color(0.5, 0.5, 0.5),
-                                    textFormat=TextFormat(foregroundColor=Color(0.8, 0.8, 0.8))
+                                    # textFormat=TextFormat(foregroundColor=Color(0.8, 0.8, 0.8)),
                                 )))
-                if len(pickList1) > 1:
+                        else:
+                            print("Couldn't find them in this match, time to keep looking!")
+                if len(pickList1) >= 1:
                     for pickList1Team in pickList1:
-                        print(f'Highlighting for pick list 1 team {pickList1Team}')
-                        print(matches.index(match) + 1)
+                        print(f'Highlighting for pick list 1 team {pickList1Team} in row {matches.index(match) + 1}')
                         if 'frc' + str(pickList1Team) in match['alliances']['red']['team_keys']:
+                            print('Found them in the red alliance!')
                             cellsNeedingFormatting.append((
                                 gspread.utils.rowcol_to_a1(matches.index(match) + 1,
                                                            match['alliances']['red']['team_keys'].index(
                                                                'frc' + str(pickList1Team)) + 1),
                                 CellFormat(
-                                    backgroundColor=Color(0.2, 0.6, 0.2),
-                                    textFormat=TextFormat(foregroundColor=Color(0.1, 0.3, 0.1))
+                                    backgroundColor=Color(0.29, 0.89, 0.45),
+                                    # textFormat=TextFormat(foregroundColor=Color(0.1, 0.3, 0.1))
                                 )))
                         elif 'frc' + str(pickList1Team) in match['alliances']['blue']['team_keys']:
+                            print('Found them in the blue alliance!')
                             cellsNeedingFormatting.append((
                                 gspread.utils.rowcol_to_a1(matches.index(match) + 1,
                                                            match['alliances']['blue']['team_keys'].index(
                                                                'frc' + str(pickList1Team)) + 4),
                                 CellFormat(
-                                    backgroundColor=Color(0.2, 0.6, 0.2),
-                                    textFormat=TextFormat(foregroundColor=Color(0.1, 0.3, 0.1))
+                                    backgroundColor=Color(0.29, 0.89, 0.45),
+                                    # textFormat=TextFormat(foregroundColor=Color(0.1, 0.3, 0.1))
                                 )))
-                if len(pickList2) > 1:
+                        else:
+                            print("Couldn't find them in this match, time to keep looking!")
+                if len(pickList2) >= 1:
                     for pickList2Team in pickList2:
-                        print(f'Highlighting for pick list 2 team {pickList2Team}')
-                        print(matches.index(match) + 1)
+                        print(f'Highlighting for pick list 2 team {pickList2Team} in row {matches.index(match) + 1}')
                         if 'frc' + str(pickList2Team) in match['alliances']['red']['team_keys']:
+                            print('Found them in the red alliance!')
                             cellsNeedingFormatting.append((
                                 gspread.utils.rowcol_to_a1(matches.index(match) + 1,
                                                            match['alliances']['red']['team_keys'].index(
                                                                'frc' + str(pickList2Team)) + 1),
                                 CellFormat(
-                                    backgroundColor=Color(0.6, 0.2, 0.8),
-                                    textFormat=TextFormat(foregroundColor=(0.3, 0.1, 0.4))
+                                    backgroundColor=Color(0.76, 0.48, 0.63),
+                                    # textFormat=TextFormat(foregroundColor=(0.3, 0.1, 0.4))
                                 )))
                         elif 'frc' + str(pickList2Team) in match['alliances']['blue']['team_keys']:
+                            print('Found them in the blue alliance!')
                             cellsNeedingFormatting.append((
                                 gspread.utils.rowcol_to_a1(matches.index(match) + 1,
                                                            match['alliances']['blue']['team_keys'].index(
                                                                'frc' + str(pickList2Team)) + 1),
                                 CellFormat(
-                                    backgroundColor=Color(0.6, 0.2, 0.8),
-                                    textFormat=TextFormat(foregroundColor=Color(0.3, 0.1, 0.4))
+                                    backgroundColor=Color(0.76, 0.48, 0.63),
+                                    # textFormat=TextFormat(foregroundColor=Color(0.3, 0.1, 0.4))
                                 )))
+                        else:
+                            print("Couldn't find them in this match, time to keep looking!")
             needCustomListUpdates = False
         formattingUpdateEnd = now()
         print(f'Highlighting and formatting matches took {formattingUpdateEnd-formattingUpdateStart}')
