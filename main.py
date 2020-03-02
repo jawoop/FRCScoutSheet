@@ -55,32 +55,35 @@ print(f"Found our event: event['key'] = {event['key']}")
 
 dataUploaded = True
 needFormattingUpdates = True
-needMatchUpdates = True
+needMatchDataUpdates = True
+needRankingUpdates = True
+needWinnerUpdates = True
+needCustomListUpdates = True
 forceAllUpdate = False
 disregardForceUpdate = False
-needCustomListUpdates = True
+
+try:
+    print('Opening the spreadsheet...')
+    spreadsheet = gc.open(f"{event['key']} Testing")
+except gspread.exceptions.SpreadsheetNotFound:
+    print("Rats, it doesn't exist. Creating a new spreadsheet...")
+    spreadsheet = gc.create(f"{event['key']} Testing")
+    # TODO Public: anonymize
+    print('Sharing spreadsheet with admin...')
+    spreadsheet.share('jake.postema@gmail.com', perm_type='user', role='writer')
+finally:
+    print('Opened the spreadsheet')
+
+try:
+    sheet = spreadsheet.sheet1
+except gspread.exceptions.APIError:
+    print(f"Oh my gosh, we can't even open the worksheet. Waiting 100 seconds"
+          f"(until {now() + datetime.timedelta(seconds=100)})")
+    time.sleep(100)
+    sheet = spreadsheet.sheet1
 
 while True:
     cycleStart = now()
-    try:
-        print('Opening the spreadsheet...')
-        spreadsheet = gc.open(f"{event['key']} Testing")
-    except gspread.exceptions.SpreadsheetNotFound:
-        print("Rats, it doesn't exist. Creating a new spreadsheet...")
-        spreadsheet = gc.create(f"{event['key']} Testing")
-        # TODO Public: anonymize
-        print('Sharing spreadsheet with admin...')
-        spreadsheet.share('jake.postema@gmail.com', perm_type='user', role='writer')
-    finally:
-        print('Opened the spreadsheet')
-
-    try:
-        sheet = spreadsheet.sheet1
-    except gspread.exceptions.APIError:
-        print(f"Oh my gosh, we can't even open the worksheet. Waiting 100 seconds"
-              f"(until {now() + datetime.timedelta(seconds=100)})")
-        time.sleep(100)
-        sheet = spreadsheet.sheet1
 
     try:
         if sheet.acell('L2').value and not disregardForceUpdate: forceAllUpdate = True
@@ -98,13 +101,19 @@ while True:
     except gspread.exceptions.APIError:
         print('Lists unable to be updated, please wait until next cycle')
 
-    if matchesReq.json() != requests.get(f"{baseUrl}/event/{event['key']}/matches/simple",
-                                         headers={'X-TBA-Auth-Key': header,
-                                                  'event_key': event['key']}).json():
-        needMatchUpdates = True
-        dataUploaded = False
+    mostRecentMatchesReq = requests.get(f"{baseUrl}/event/{event['key']}/matches/simple",
+                                        headers={'X-TBA-Auth-Key': header,
+                                                 'event_key': event['key']}).json()
 
-    if needMatchUpdates or forceAllUpdate:
+    if matchesReq.json() != mostRecentMatchesReq:
+        needRankingUpdates = True
+        if checkAlliancesChanged(matchesReq, mostRecentMatchesReq):
+            needMatchDataUpdates = True
+            dataUploaded = False
+        if updatedMatchWinners(matchesReq, mostRecentMatchesReq):
+            needWinnerUpdates = True
+
+    if needMatchDataUpdates or forceAllUpdate:
         matchUpdateStart = now()
         matchesReq = requests.get(f"{baseUrl}/event/{event['key']}/matches/simple",
                                   headers={'X-TBA-Auth-Key': header,
@@ -179,7 +188,7 @@ while True:
     if needFormattingUpdates or forceAllUpdate:
         formattingUpdateStart = now()
         try:
-            if needMatchUpdates or forceAllUpdate:
+            if forceAllUpdate:
                 format_cell_range(sheet, f'A1:C{len(matches)}', CellFormat(
                     backgroundColor=Color(1, 0.9, 0.9),
                     textFormat=TextFormat(bold=False, italic=False, underline=False, foregroundColor=Color(0.5, 0, 0)),
@@ -207,6 +216,7 @@ while True:
                     horizontalAlignment='CENTER'
                 ))
 
+            if needMatchDataUpdates or forceAllUpdate:
                 print('Highlighting us...')
                 for cell in sheet.findall('1405'):
                     cellsNeedingFormatting.append((gspread.utils.rowcol_to_a1(cell.row, cell.col),
@@ -230,7 +240,7 @@ while True:
                                                        CellFormat(
                                                            textFormat=TextFormat(italic=True)
                                                        )))
-
+            if needRankingUpdates or forceAllUpdate:
                 for ranking in rankings:
                     print(f"Ranking team {ranking['team_key'][3:]} -- ranked {ranking['rank']}")
                     for cell in sheet.findall(ranking['team_key'][3:]):
@@ -267,6 +277,7 @@ while True:
                                                                    textFormat=TextFormat(
                                                                        foregroundColor=Color(0.38, 0.38, 0.63))
                                                                )))
+            if needWinnerUpdates or forceAllUpdate:
                 for match in matches:
                     if match['winning_alliance']:
                         print(f"Highlighting winner of match {match['match_number']}")
@@ -293,7 +304,7 @@ while True:
                     else:
                         print(f"Match #{match['match_number']} has not resolved yet; no winner")
 
-                needMatchUpdates = False
+            needMatchDataUpdates = False
 
             print('Congratulations, complete formatting update!')
             needFormattingUpdates = False
@@ -305,7 +316,7 @@ while True:
             for match in matches:
                 if len(doNotTrackList) >= 1:
                     for dntTeam in doNotTrackList:
-                        print(f'Highlighting for pick list 2 team {dntTeam} in row {matches.index(match) + 1}')
+                        print(f'Highlighting for do not track team {dntTeam} in row {matches.index(match) + 1}')
                         if 'frc' + str(dntTeam) in match['alliances']['red']['team_keys']:
                             print('Found them in the red alliance!')
                             cellsNeedingFormatting.append((
