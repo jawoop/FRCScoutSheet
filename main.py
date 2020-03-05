@@ -93,8 +93,8 @@ while True:
         print('Force update could not be accessed, please wait until the next cycle')
 
     try:
-        if doNotTrackList != sheet.col_values(8)[1:] or pickList1 != sheet.col_values(9)[
-                                                                     1:] or pickList2 != sheet.col_values(10)[1:]:
+        if doNotTrackList != sheet.col_values(8)[1:] or pickList1 != sheet.col_values(9)[1:] \
+                or pickList2 != sheet.col_values(10)[1:]:
             update['customList'] = True
         doNotTrackList = filterEntropy(sheet.col_values(8)[1:])
         pickList1 = filterEntropy(sheet.col_values(9)[1:])
@@ -107,12 +107,12 @@ while True:
                                         headers={'X-TBA-Auth-Key': header,
                                                  'event_key': event['key']}).json()
 
-    if matchesReq.json() != mostRecentMatchesReq:
+    if matchesReq == [{}] or matchesReq.json() != mostRecentMatchesReq:
         update['rankings'] = True
-        if checkAlliancesChanged(matchesReq, mostRecentMatchesReq):
+        if matchesReq == [{}] or checkAlliancesChanged(matchesReq, mostRecentMatchesReq):
             update['matchData'] = True
             update['matchDataUploaded'] = False
-        if updatedMatchWinners(matchesReq, mostRecentMatchesReq):
+        if matchesReq == [{}] or updatedMatchWinners(matchesReq, mostRecentMatchesReq):
             update['winners'] = True
 
     if update['matchData']:
@@ -313,7 +313,7 @@ while True:
         print('Read requests overload: Waiting until cycle to update highlighting')
         needFormattingUpdates = True
 
-        if needCustomListUpdates:
+        if update['customList']:
             for match in matches:
                 if len(doNotTrackList) >= 1:
                     for dntTeam in doNotTrackList:

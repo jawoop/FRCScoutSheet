@@ -26,11 +26,21 @@ def filterEntropy(list_):
 
 def checkAlliancesChanged(matchesList1, matchesList2):
     if len(matchesList1) != len(matchesList2): return True
-    for matchIndex in matchesList1:
+    for matchIndex in range(len(matchesList1)):
         if matchesList1[matchIndex]['alliances'] != matchesList2[matchIndex]['alliances']: return True
     return False
 
 
 def updatedMatchWinners(matchesList1, matchesList2):
-    return [matchIndex for matchIndex in matchesList2 if
-            matchesList2[matchIndex]['winning_alliance'] and not matchesList1[matchIndex]['winning_alliance']]
+    matchIndices = []
+    for matchIndex in range(len(matchesList2)):
+        try:
+            if matchesList2[matchIndex]['winning_alliance']:
+                try:
+                    if not matchesList1[matchIndex]['winning_alliance']:
+                        matchIndices.append(matchIndex)
+                except KeyError:
+                    matchIndices.append(matchIndex)
+        except KeyError:
+            pass
+    return matchIndices
