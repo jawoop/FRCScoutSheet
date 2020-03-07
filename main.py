@@ -55,13 +55,6 @@ print(f"Found our event: event['key'] = {event['key']}")
 
 update = {'basicFormatting': True, 'customList': True, 'matchData': True, 'matchDataUploaded': True, 'rankings': True,
           'winners': True}
-dataUploaded = True
-needFormattingUpdates = True
-needMatchDataUpdates = True
-needRankingUpdates = True
-needWinnerUpdates = True
-needCustomListUpdates = True
-forceAllUpdate = False
 disregardForceUpdate = False
 
 try:
@@ -86,9 +79,9 @@ except gspread.exceptions.APIError:
 
 while True:
     cycleStart = now()
-
     try:
-        if sheet.acell('L2').value and not disregardForceUpdate: update = {k: True for (k, v) in update}
+        if sheet.acell('L2').value and not disregardForceUpdate:
+            update = {k: True for (k, v) in update}
     except gspread.exceptions.APIError:
         print('Force update could not be accessed, please wait until the next cycle')
 
@@ -188,16 +181,22 @@ while True:
 
     cellsNeedingFormatting = []
     formattingUpdateStart = now()
+    if update['customList']:
+        if update['winners']:
+            update['basicFormatting'] = True
+        update['winners'] = True
     try:
         if update['basicFormatting']:
             format_cell_range(sheet, f'A1:C{len(matches)}', CellFormat(
                 backgroundColor=Color(1, 0.9, 0.9),
-                textFormat=TextFormat(bold=False, italic=False, underline=False, foregroundColor=Color(0.5, 0, 0)),
+                textFormat=TextFormat(foregroundColor=Color(0.5, 0, 0)),
+                # textFormat=TextFormat(bold=False, italic=False, underline=False, foregroundColor=Color(0.5, 0, 0)),
                 horizontalAlignment='CENTER'
             ))
             format_cell_range(sheet, f'D1:F{len(matches)}', CellFormat(
                 backgroundColor=Color(0.9, 0.9, 1),
-                textFormat=TextFormat(bold=False, italic=False, underline=False, foregroundColor=Color(0, 0, 0.5)),
+                textFormat=TextFormat(foregroundColor=Color(0, 0, 0.5)),
+                # textFormat=TextFormat(bold=False, italic=False, underline=False, foregroundColor=Color(0, 0, 0.5)),
                 horizontalAlignment='CENTER'
             ))
 
@@ -216,6 +215,7 @@ while True:
                 textFormat=TextFormat(bold=True, foregroundColor=Color(0, 0, 1)),
                 horizontalAlignment='CENTER'
             ))
+            update['basicFormatting'] = False
 
         if update['matchData']:
             print('Highlighting us...')
@@ -241,6 +241,8 @@ while True:
                                                    CellFormat(
                                                        textFormat=TextFormat(italic=True)
                                                    )))
+            update['matchData'] = False
+
         if update['rankings']:
             for ranking in rankings:
                 print(f"Ranking team {ranking['team_key'][3:]} -- ranked {ranking['rank']}")
@@ -278,6 +280,8 @@ while True:
                                                                textFormat=TextFormat(
                                                                    foregroundColor=Color(0.38, 0.38, 0.63))
                                                            )))
+            update['rankings'] = False
+
         if update['winners']:
             for match in matches:
                 if match['winning_alliance']:
@@ -304,14 +308,7 @@ while True:
                             )))
                 else:
                     print(f"Match #{match['match_number']} has not resolved yet; no winner")
-
-        update['matchData'] = False
-
-        print('Congratulations, complete formatting update!')
-        needFormattingUpdates = False
-    except gspread.exceptions.APIError:
-        print('Read requests overload: Waiting until cycle to update highlighting')
-        needFormattingUpdates = True
+            update['winners'] = False
 
         if update['customList']:
             for match in matches:
@@ -343,6 +340,12 @@ while True:
                             print("Couldn't find them in this match, time to keep looking!")
                 if len(pickList1) >= 1:
                     for pickList1Team in pickList1:
+                        if pickList1Team in doNotTrackList and CellFormat(backgroundColor=Color(0.5, 0.5, 0.5)) in \
+                                cellsNeedingFormatting[-1]:
+                            cellsNeedingFormatting.pop()  # Removes DNT status if in pickList1
+                            print(
+                                f'Removing do-not-track status from {pickList1Team} in row {matches.index(match) + 1}')
+
                         print(f'Highlighting for pick list 1 team {pickList1Team} in row {matches.index(match) + 1}')
                         if 'frc' + str(pickList1Team) in match['alliances']['red']['team_keys']:
                             print('Found them in the red alliance!')
@@ -368,6 +371,17 @@ while True:
                             print("Couldn't find them in this match, time to keep looking!")
                 if len(pickList2) >= 1:
                     for pickList2Team in pickList2:
+                        if pickList2Team in doNotTrackList and CellFormat(backgroundColor=Color(0.5, 0.5, 0.5)) in \
+                                cellsNeedingFormatting[-1]:
+                            cellsNeedingFormatting.pop()  # Removes DNT status if in pickList2
+                            print(
+                                f'Removing do-not-track status from {pickList2Team} in row {matches.index(match) + 1}')
+                        if pickList2Team in pickList1 and CellFormat(backgroundColor=Color(0.29, 0.89, 0.45)) in \
+                                cellsNeedingFormatting[-1]:
+                            cellsNeedingFormatting.pop()  # Removes pickList1 status if in pickList2
+                            print(
+                                f'Removing pick list 1 status from {pickList2Team} in row {matches.index(match) + 1}')
+
                         print(f'Highlighting for pick list 2 team {pickList2Team} in row {matches.index(match) + 1}')
                         if 'frc' + str(pickList2Team) in match['alliances']['red']['team_keys']:
                             print('Found them in the red alliance!')
@@ -384,16 +398,22 @@ while True:
                             cellsNeedingFormatting.append((
                                 gspread.utils.rowcol_to_a1(matches.index(match) + 1,
                                                            match['alliances']['blue']['team_keys'].index(
-                                                               'frc' + str(pickList2Team)) + 1),
+                                                               'frc' + str(pickList2Team)) + 4),
                                 CellFormat(
                                     backgroundColor=Color(0.76, 0.48, 0.63),
                                     # textFormat=TextFormat(foregroundColor=Color(0.3, 0.1, 0.4))
                                 )))
                         else:
                             print("Couldn't find them in this match, time to keep looking!")
-            needCustomListUpdates = False
+            update['customList'] = False
+
         formattingUpdateEnd = now()
         print(f'Highlighting and formatting matches took {formattingUpdateEnd - formattingUpdateStart}')
+
+        print('Congratulations, complete formatting update!')
+    except gspread.exceptions.APIError:
+        print('Read requests overload: Waiting until cycle to update highlighting')
+
     print(cellsNeedingFormatting)
     print('Formatting all cells...')
     if cellsNeedingFormatting: format_cell_ranges(sheet, cellsNeedingFormatting)
